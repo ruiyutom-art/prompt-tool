@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 影视提示词工作台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080808;--surface:#111;--surface2:#181818;--surface3:#222;
+  --border:#252525;--border2:#333;
+  --accent:#c8a45c;--accent-hover:#dab96e;--accent-dim:rgba(200,164,92,.12);
+  --text:#e8e4de;--text2:#a09a90;--text3:#5e5955;
+  --danger:#c45c5c;--danger-dim:rgba(196,92,92,.12);
+  --success:#5cc470;
+  --r:8px;--r-lg:12px;
+  --font:'Noto Sans SC',-apple-system,system-ui,sans-serif;
+  --font-display:'Noto Serif SC',Georgia,serif;
+  --font-mono:'JetBrains Mono','Menlo',monospace;
+  --shadow:0 4px 24px rgba(0,0,0,.4);--shadow-lg:0 12px 48px rgba(0,0,0,.6);
+}
+html{font-size:14px}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:99999;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Header ── */
+.header{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:100}
+.header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 5%,var(--accent) 50%,transparent 95%);opacity:.2}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{font-size:20px;color:var(--accent);font-weight:700}
+.logo h1{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:.5px;color:var(--text)}
+.header-right{display:flex;align-items:center;gap:10px}
+.last-updated{font-size:12px;color:var(--text3);font-family:var(--font-mono);margin-right:8px}
+
+/* ── Layout ── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sidebar-head{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+.sidebar-head h2{font-size:12px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px}
+.cat-list{flex:1;overflow-y:auto;padding:4px 8px}
+.cat-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r);cursor:pointer;transition:background .15s,border-color .15s;margin-bottom:2px;border:1px solid transparent;position:relative;user-select:none}
+.cat-item:hover{background:var(--surface2)}
+.cat-item.active{background:var(--accent-dim);border-color:rgba(200,164,92,.2)}
+.cat-item .ci-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.cat-item .ci-name{flex:1;font-size:13px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-item .ci-count{font-size:11px;color:var(--text3);font-family:var(--font-mono);flex-shrink:0;min-width:18px;text-align:center}
+.cat-item .ci-actions{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;gap:2px;opacity:0;transition:opacity .15s}
+.cat-item:hover .ci-actions{opacity:1}
+.cat-item.active .ci-actions{opacity:1}
+.ci-btn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text3);cursor:pointer;border-radius:4px;font-size:13px;transition:background .15s,color .15s}
+.ci-btn:hover{background:var(--surface3);color:var(--text)}
+.ci-btn.del:hover{color:var(--danger);background:var(--danger-dim)}
+.sidebar-foot{padding:12px;border-top:1px solid var(--border)}
+
+/* ── Content ── */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.content-head{padding:16px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.search-box{flex:1;position:relative;max-width:480px}
+.search-box input{width:100%;padding:8px 12px 8px 36px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:var(--accent)}
+.search-box input::placeholder{color:var(--text3)}
+.search-box .s-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
+.prompt-grid{flex:1;overflow-y:auto;padding:20px 24px 40px}
+
+/* ── Cards ── */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start}
+.p-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;opacity:0;animation:cardIn .4s ease forwards}
+.p-card:hover{transform:translateY(-2px);border-color:var(--border2);box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.card-media{height:170px;overflow:hidden;position:relative;background:linear-gradient(135deg,var(--surface2),var(--surface3))}
+.card-media img,.card-media video{width:100%;height:100%;object-fit:cover}
+.card-media .media-count{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.7);color:var(--text);font-size:11px;padding:2px 8px;border-radius:10px;font-family:var(--font-mono)}
+.card-media .no-media{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:28px}
+.card-body{padding:14px 16px}
+.card-body h3{font-size:14px;font-weight:500;margin-bottom:4px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-body .card-desc{font-size:12px;color:var(--text2);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+.card-body .card-prompt{font-family:var(--font-mono);font-size:11px;color:var(--text3);background:var(--bg);padding:8px 10px;border-radius:6px;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6;word-break:break-all}
+.card-tags{display:flex;flex-wrap:wrap;gap:4px}
+.card-tag{font-size:11px;padding:2px 8px;background:var(--accent-dim);color:var(--accent);border-radius:10px}
+.card-tool{font-size:11px;color:var(--text3);margin-bottom:6px;font-family:var(--font-mono)}
+.card-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.p-card:hover .card-actions{opacity:1}
+.card-act-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);color:var(--text);cursor:pointer;border-radius:6px;font-size:14px;transition:background .15s}
+.card-act-btn:hover{background:rgba(0,0,0,.85)}
+.card-act-btn.del-btn:hover{color:var(--danger)}
+
+/* ── Empty State ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center}
+.empty-state .empty-icon{font-size:48px;margin-bottom:16px;opacity:.4}
+.empty-state h3{font-size:16px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.empty-state p{font-size:13px;color:var(--text3);max-width:320px;line-height:1.6}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.btn:hover{background:var(--surface3);border-color:var(--border2)}
+.btn-primary{background:var(--accent);color:#0a0a0a;border-color:var(--accent);font-weight:500}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text2)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-danger{border-color:var(--danger);color:var(--danger);background:transparent}
+.btn-danger:hover{background:var(--danger-dim)}
+.btn-icon{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text3);cursor:pointer;border-radius:var(--r);transition:all .15s;font-size:16px}
+.btn-icon:hover{background:var(--surface2);color:var(--text)}
+.add-cat-btn{width:100%;padding:8px;border:1px dashed var(--border);border-radius:var(--r);background:transparent;color:var(--text3);font-family:var(--font);font-size:13px;cursor:pointer;transition:all .15s}
+.add-cat-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+
+/* ── Modals ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.modal-overlay.open{opacity:1;visibility:visible}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);width:90%;max-width:560px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);transform:translateY(12px) scale(.98);transition:transform .25s ease}
+.modal-overlay.open .modal{transform:translateY(0) scale(1)}
+.modal-lg{max-width:680px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-head h2{font-size:16px;font-weight:500;font-family:var(--font-display)}
+.modal-close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--text3);cursor:pointer;border-radius:6px;font-size:20px;transition:all .15s}
+.modal-close:hover{background:var(--surface2);color:var(--text)}
+.modal-body{flex:1;overflow-y:auto;padding:20px 22px}
+.modal-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* ── Forms ── */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;letter-spacing:.3px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--accent)}
+.form-group textarea{resize:vertical;min-height:80px;line-height:1.6}
+.form-group textarea.ta-mono{font-family:var(--font-mono);font-size:12px;min-height:100px}
+.form-group select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235e5955'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.icon-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.icon-opt{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:18px;transition:all .15s;background:transparent}
+.icon-opt:hover{border-color:var(--border2);background:var(--surface2)}
+.icon-opt.sel{border-color:var(--accent);background:var(--accent-dim)}
+
+/* ── Media Upload ── */
+.media-drop{border:1px dashed var(--border2);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:8px}
+.media-drop:hover,.media-drop.dragover{border-color:var(--accent);background:var(--accent-dim)}
+.media-drop .drop-icon{font-size:24px;margin-bottom:6px;color:var(--text3)}
+.media-drop p{font-size:12px;color:var(--text3)}
+.media-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.media-thumb{width:80px;height:80px;border-radius:6px;overflow:hidden;position:relative;border:1px solid var(--border)}
+.media-thumb img,.media-thumb video{width:100%;height:100%;object-fit:cover}
+.media-thumb .mt-del{position:absolute;top:2px;right:2px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7);color:var(--text);border:none;border-radius:50%;cursor:pointer;font-size:12px;opacity:0;transition:opacity .15s}
+.media-thumb:hover .mt-del{opacity:1}
+.media-thumb .mt-vid-badge{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.7);color:var(--text);font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--font-mono)}
+
+/* ── Detail Modal ── */
+.detail-section{margin-bottom:20px}
+.detail-section:last-child{margin-bottom:0}
+.detail-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.detail-title{font-family:var(--font-display);font-size:20px;font-weight:600;margin-bottom:4px}
+.detail-cat{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--accent);margin-bottom:12px}
+.detail-desc{font-size:13px;color:var(--text2);line-height:1.7}
+.detail-prompt-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;font-family:var(--font-mono);font-size:12px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-break:break-all;position:relative;max-height:200px;overflow-y:auto}
+.copy-btn{position:absolute;top:8px;right:8px;padding:4px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font);transition:all .15s}
+.copy-btn:hover{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.detail-meta{font-size:12px;color:var(--text3);font-family:var(--font-mono);line-height:1.8}
+.detail-tags{display:flex;flex-wrap:wrap;gap:6px}
+.detail-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.dm-item{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:border-color .15s;position:relative}
+.dm-item:hover{border-color:var(--accent)}
+.dm-item img,.dm-item video{width:100%;height:100%;object-fit:cover}
+.dm-item .dm-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);color:#fff;font-size:24px}
+
+/* ── Lightbox ── */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:2000;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s;cursor:pointer}
+.lightbox.open{opacity:1;visibility:visible}
+.lightbox img{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:4px}
+.lightbox video{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:4px}
+.lb-close{position:absolute;top:16px;right:20px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);border:none;color:#fff;border-radius:50%;cursor:pointer;font-size:22px;transition:background .15s}
+.lb-close:hover{background:rgba(255,255,255,.2)}
+
+/* ── Confirm ── */
+.confirm-body{text-align:center;padding:24px 0}
+.confirm-body .cf-icon{font-size:36px;margin-bottom:12px}
+.confirm-body p{font-size:14px;color:var(--text2);line-height:1.6}
+
+/* ── Toast ── */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:3000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text);box-shadow:var(--shadow);pointer-events:auto;animation:toastIn .3s ease,toastOut .3s ease 2.5s forwards;display:flex;align-items:center;gap:8px}
+.toast.t-success{border-left:3px solid var(--success)}
+.toast.t-error{border-left:3px solid var(--danger)}
+.toast.t-info{border-left:3px solid var(--accent)}
+
+/* ── Animations ── */
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px)}}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{width:200px}
+  .card-grid{grid-template-columns:1fr}
+  .prompt-grid{padding:16px}
+  .form-row{grid-template-columns:1fr}
+  .header{padding:0 14px}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">◈</span>
+        <h1>AI 影视提示词工作台</h1>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="last-updated" id="lastUpdated">最后更新: —</span>
+      <button class="btn btn-ghost" onclick="doImport()"><span>↓</span> 导入</button>
+      <button class="btn btn-ghost" onclick="doExport()"><span>↑</span> 导出</button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-head"><h2>分类</h2></div>
+      <div class="cat-list" id="catList"></div>
+      <div class="sidebar-foot">
+        <button class="add-cat-btn" onclick="openCatModal()">+ 新建分类</button>
+      </div>
+    </aside>
+    <main class="content">
+      <div class="content-head">
+        <div class="search-box">
+          <span class="s-icon">⌕</span>
+          <input type="text" id="searchInput" placeholder="搜索提示词…" oninput="onSearch(this.value)">
+        </div>
+        <button class="btn btn-primary" onclick="openPromptModal()">+ 添加提示词</button>
+      </div>
+      <div class="prompt-grid" id="promptGrid"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Category Modal -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="catModalTitle">新建分类</h2>
+      <button class="modal-close" onclick="closeCatModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>分类名称</label>
+        <input type="text" id="catName" placeholder="输入分类名称">
+      </div>
+      <div class="form-group">
+        <label>选择图标</label>
+        <div class="icon-grid" id="iconGrid"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeCatModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCat()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Modal -->
+<div class="modal-overlay" id="promptModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2 id="promptModalTitle">添加提示词</h2>
+      <button class="modal-close" onclick="closePromptModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>标题 *</label>
+        <input type="text" id="pTitle" placeholder="给提示词起个名字">
+      </div>
+      <div class="form-group">
+        <label>所属分类 *</label>
+        <select id="pCategory"></select>
+      </div>
+      <div class="form-group">
+        <label>描述</label>
+        <textarea id="pDesc" rows="2" placeholder="简要描述这个提示词的效果"></textarea>
+      </div>
+      <div class="form-group">
+        <label>提示词内容 *</label>
+        <textarea id="pText" class="ta-mono" rows="5" placeholder="粘贴你的提示词…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>反向提示词</label>
+        <textarea id="pNeg" class="ta-mono" rows="2" placeholder="Negative Prompt（可选）"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>AI 工具</label>
+          <input type="text" id="pTool" placeholder="如 Midjourney、Sora…">
+        </div>
+        <div class="form-group">
+          <label>参数</label>
+          <input type="text" id="pParams" placeholder="--ar 16:9 --v 6">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>标签（逗号分隔）</label>
+        <input type="text" id="pTags" placeholder="电影, 追逐, 慢动作">
+      </div>
+      <div class="form-group">
+        <label>媒体示例</label>
+        <div class="media-drop" id="mediaDrop" onclick="document.getElementById('fileMedia').click()">
+          <div class="drop-icon">📁</div>
+          <p>拖拽图片 / 视频到此处，或点击上传</p>
+        </div>
+        <div class="media-preview" id="mediaPreview"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closePromptModal()">取消</button>
+      <button class="btn btn-primary" onclick="savePrompt()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h2>提示词详情</h2>
+      <button class="modal-close" onclick="closeDetailModal()">×</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-foot" id="detailFoot"></div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head">
+      <h2>确认操作</h2>
+      <button class="modal-close" onclick="closeConfirm()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="confirm-body" id="confirmBody"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeConfirm()">取消</button>
+      <button class="btn btn-danger" id="confirmOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lb-close" onclick="closeLightbox(event)">×</button>
+  <div id="lbContent"></div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- Hidden Inputs -->
+<input type="file" id="fileImport" accept=".json" hidden>
+<input type="file" id="fileMedia" accept="image/*,video/*" multiple hidden>
+
+<script>
+// ════════════════════════════════════════
+//  DATABASE (IndexedDB)
+// ════════════════════════════════════════
+const DB_NAME='ai-prompt-studio',DB_VER=1,STORE='kv';
+function dbOpen(){return new Promise((ok,no)=>{const r=indexedDB.open(DB_NAME,DB_VER);
+r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE)};
+r.onsuccess=e=>ok(e.target.result);r.onerror=e=>no(e.target.error)})}
+async function dbGet(k){const d=await dbOpen();return new Promise((ok,no)=>{const r=d.transaction(STORE,'readonly').objectStore(STORE).get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function dbSet(k,v){const d=await dbOpen();return new Promise((ok,no)=>{const r=d.transaction(STORE,'readwrite').objectStore(STORE).put(v,k);r.onsuccess=()=>ok();r.onerror=()=>no(r.error)})}
+
+// ════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════
+const ICONS=['🎬','🎥','📷','🎨','🎭','🌅','🌃','💡','🔊','✨','🎵','📝','🎯','🔮','🌈','⚡','🎪','🏔️','🌊','🌸','🔥','💫','🎞️','📽️','🎤','🖌️','📐','🌟','🎶','🖥️'];
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+const fmtTime=iso=>{if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'})+' '+d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})};
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let S={categories:[],prompts:[],lastUpdated:null};
+let selectedCatId='all';
+let searchQ='';
+let editingCatId=null;
+let editingPromptId=null;
+let pendingMedia=[];
+let confirmCb=null;
+
+// ════════════════════════════════════════
+//  PERSISTENCE
+// ════════════════════════════════════════
+async function loadState(){
+  const d=await dbGet('state');
+  if(d)S={...S,...d};
+}
+async function saveState(){
+  S.lastUpdated=new Date().toISOString();
+  await dbSet('state',{categories:S.categories,prompts:S.prompts,lastUpdated:S.lastUpdated});
+  renderUpdated();
+}
+
+// ════════════════════════════════════════
+//  UTILITIES
+// ════════════════════════════════════════
+function toast(msg,type='success'){
+  const t=document.createElement('div');t.className='toast t-'+type;
+  t.innerHTML=(type==='success'?'✓ ':type==='error'?'✕ ':'ℹ ')+msg;
+  document.getElementById('toastWrap').appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+function readFileAsDataURL(file){return new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(file)})}
+function genVideoThumb(src){return new Promise(ok=>{const v=document.createElement('video');v.src=src;v.muted=true;v.playsInline=true;
+v.onloadeddata=()=>{v.currentTime=Math.min(1,v.duration/4)};
+v.onseeked=()=>{const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);ok(c.toDataURL('image/jpeg',0.6))};
+v.onerror=()=>ok(null);setTimeout(()=>ok(null),5000)})}
+
+// ════════════════════════════════════════
+//  RENDER — Updated Time
+// ════════════════════════════════════════
+function renderUpdated(){
+  document.getElementById('lastUpdated').textContent='最后更新: '+fmtTime(S.lastUpdated);
+}
+
+// ════════════════════════════════════════
+//  RENDER — Categories
+// ════════════════════════════════════════
+function renderCats(){
+  const el=document.getElementById('catList');
+  const allCount=S.prompts.length;
+  let h=`<div class="cat-item${selectedCatId==='all'?' active':''}" onclick="selectCat('all')">
+    <span class="ci-icon">☰</span><span class="ci-name">全部提示词</span><span class="ci-count">${allCount}</span></div>`;
+  S.categories.forEach(c=>{
+    const cnt=S.prompts.filter(p=>p.categoryId===c.id).length;
+    h+=`<div class="cat-item${selectedCatId===c.id?' active':''}" onclick="selectCat('${c.id}')">
+      <span class="ci-icon">${c.icon||'📁'}</span><span class="ci-name">${esc(c.name)}</span><span class="ci-count">${cnt}</span>
+      <span class="ci-actions">
+        <button class="ci-btn" onclick="event.stopPropagation();openCatModal('${c.id}')" title="编辑">✎</button>
+        <button class="ci-btn del" onclick="event.stopPropagation();confirmDelCat('${c.id}')" title="删除">×</button>
+      </span></div>`;
+  });
+  el.innerHTML=h;
+}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+// ════════════════════════════════════════
+//  RENDER — Prompts
+// ════════════════════════════════════════
+function renderPrompts(){
+  const el=document.getElementById('promptGrid');
+  let list=S.prompts.slice().sort((a,b)=>(b.updatedAt||b.createdAt).localeCompare(a.updatedAt||a.createdAt));
+  if(selectedCatId!=='all')list=list.filter(p=>p.categoryId===selectedCatId);
+  if(searchQ){const q=searchQ.toLowerCase();list=list.filter(p=>(p.title+p.description+p.promptText+(p.tags||[]).join(' ')).toLowerCase().includes(q))}
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🎞️</div><h3>${searchQ?'没有找到匹配的提示词':'还没有提示词'}</h3><p>${searchQ?'尝试其他关键词':'点击右上角「+ 添加提示词」开始构建你的提示词合集'}</p></div>`;
+    return;
+  }
+  let h='<div class="card-grid">';
+  list.forEach((p,i)=>{
+    const cat=S.categories.find(c=>c.id===p.categoryId);
+    const media0=p.media&&p.media[0];
+    const tagsHtml=(p.tags||[]).slice(0,4).map(t=>`<span class="card-tag">${esc(t)}</span>`).join('');
+    h+=`<div class="p-card" style="animation-delay:${i*0.04}s" onclick="openDetail('${p.id}')">
+      <div class="card-actions">
+        <button class="card-act-btn" onclick="event.stopPropagation();openPromptModal('${p.id}')" title="编辑">✎</button>
+        <button class="card-act-btn del-btn" onclick="event.stopPropagation();confirmDelPrompt('${p.id}')" title="删除">×</button>
+      </div>
+      <div class="card-media">`;
+    if(media0){
+      if(media0.type==='image')h+=`<img src="${media0.dataUrl}" alt="">`;
+      else h+=`<video src="${media0.dataUrl}" muted preload="metadata"></video>`;
+      if(p.media.length>1)h+=`<span class="media-count">+${p.media.length-1}</span>`;
+    }else{
+      h+=`<div class="no-media">${cat?cat.icon:'🎞️'}</div>`;
+    }
+    h+=`</div><div class="card-body">`;
+    if(p.tool)h+=`<div class="card-tool">${esc(p.tool)}</div>`;
+    h+=`<h3>${esc(p.title)}</h3>`;
+    if(p.description)h+=`<div class="card-desc">${esc(p.description)}</div>`;
+    h+=`<div class="card-prompt">${esc(p.promptText)}</div>`;
+    if(tagsHtml)h+=`<div class="card-tags">${tagsHtml}</div>`;
+    h+=`</div></div>`;
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+// ════════════════════════════════════════
+//  SELECT CATEGORY
+// ════════════════════════════════════════
+function selectCat(id){selectedCatId=id;renderCats();renderPrompts()}
+
+// ════════════════════════════════════════
+//  SEARCH
+// ════════════════════════════════════════
+function onSearch(v){searchQ=v.trim();renderPrompts()}
+
+// ════════════════════════════════════════
+//  CATEGORY MODAL
+// ════════════════════════════════════════
+let selectedIcon='🎬';
+function openCatModal(id){
+  editingCatId=id||null;
+  document.getElementById('catModalTitle').textContent=id?'编辑分类':'新建分类';
+  const nameInput=document.getElementById('catName');
+  if(id){
+    const c=S.categories.find(x=>x.id===id);
+    nameInput.value=c.name;selectedIcon=c.icon||'🎬';
+  }else{nameInput.value='';selectedIcon='🎬'}
+  renderIconGrid();
+  document.getElementById('catModal').classList.add('open');
+  setTimeout(()=>nameInput.focus(),200);
+}
+function closeCatModal(){document.getElementById('catModal').classList.remove('open');editingCatId=null}
+function renderIconGrid(){
+  document.getElementById('iconGrid').innerHTML=ICONS.map(i=>`<div class="icon-opt${i===selectedIcon?' sel':''}" onclick="pickIcon('${i}')">${i}</div>`).join('');
+}
+function pickIcon(i){selectedIcon=i;renderIconGrid()}
+async function saveCat(){
+  const name=document.getElementById('catName').value.trim();
+  if(!name){toast('请输入分类名称','error');return}
+  if(editingCatId){
+    const c=S.categories.find(x=>x.id===editingCatId);
+    c.name=name;c.icon=selectedIcon;c.updatedAt=new Date().toISOString();
+  }else{
+    S.categories.push({id:uid(),name,icon:selectedIcon,createdAt:new Date().toISOString()});
+  }
+  await saveState();renderCats();closeCatModal();toast(editingCatId?'分类已更新':'分类已创建');
+}
+
+// ════════════════════════════════════════
+//  CONFIRM
+// ════════════════════════════════════════
+function showConfirm(html,cb){
+  document.getElementById('confirmBody').innerHTML=html;
+  confirmCb=cb;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirmModal').classList.remove('open');confirmCb=null}
+document.getElementById('confirmOk').onclick=()=>{if(confirmCb)confirmCb();closeConfirm()};
+
+function confirmDelCat(id){
+  const c=S.categories.find(x=>x.id===id);
+  const cnt=S.prompts.filter(p=>p.categoryId===id).length;
+  showConfirm(`<div class="cf-icon">⚠️</div><p>确定要删除分类「${esc(c.name)}」吗？${cnt?`<br>该分类下的 <b>${cnt}</b> 个提示词将同时被删除。`:''}</p>`,async()=>{
+    S.categories=S.categories.filter(x=>x.id!==id);
+    S.prompts=S.prompts.filter(p=>p.categoryId!==id);
+    if(selectedCatId===id)selectedCatId='all';
+    await saveState();renderCats();renderPrompts();toast('已删除');
+  });
+}
+function confirmDelPrompt(id){
+  const p=S.prompts.find(x=>x.id===id);
+  showConfirm(`<div class="cf-icon">🗑️</div><p>确定要删除提示词「${esc(p.title)}」吗？</p>`,async()=>{
+    S.prompts=S.prompts.filter(x=>x.id!==id);
+    await saveState();renderCats();renderPrompts();toast('已删除');
+  });
+}
+
+// ════════════════════════════════════════
+//  PROMPT MODAL
+// ════════════════════════════════════════
+function openPromptModal(id){
+  editingPromptId=id||null;
+  document.getElementById('promptModalTitle').textContent=id?'编辑提示词':'添加提示词';
+  // populate category select
+  const sel=document.getElementById('pCategory');
+  sel.innerHTML='<option value="">选择分类</option>'+S.categories.map(c=>`<option value="${c.id}">${c.icon} ${esc(c.name)}</option>`).join('');
+  if(id){
+    const p=S.prompts.find(x=>x.id===id);
+    document.getElementById('pTitle').value=p.title;
+    sel.value=p.categoryId;
+    document.getElementById('pDesc').value=p.description||'';
+    document.getElementById('pText').value=p.promptText;
+    document.getElementById('pNeg').value=p.negativePrompt||'';
+    document.getElementById('pTool').value=p.tool||'';
+    document.getElementById('pParams').value=p.parameters||'';
+    document.getElementById('pTags').value=(p.tags||[]).join(', ');
+    pendingMedia=(p.media||[]).map(m=>({...m}));
+  }else{
+    ['pTitle','pDesc','pText','pNeg','pTool','pParams','pTags'].forEach(k=>document.getElementById(k).value='');
+    pendingMedia=[];
+  }
+  renderMediaPreview();
+  document.getElementById('promptModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pTitle').focus(),200);
+}
+function closePromptModal(){document.getElementById('promptModal').classList.remove('open');editingPromptId=null;pendingMedia=[]}
+
+// Media handling
+const mediaDrop=document.getElementById('mediaDrop');
+const fileMediaInput=document.getElementById('fileMedia');
+mediaDrop.addEventListener('dragover',e=>{e.preventDefault();mediaDrop.classList.add('dragover')});
+mediaDrop.addEventListener('dragleave',()=>mediaDrop.classList.remove('dragover'));
+mediaDrop.addEventListener('drop',async e=>{e.preventDefault();mediaDrop.classList.remove('dragover');await addMediaFiles(e.dataTransfer.files)});
+fileMediaInput.addEventListener('change',async e=>{if(e.target.files.length)await addMediaFiles(e.target.files);fileMediaInput.value=''});
+
+async function addMediaFiles(files){
+  for(const f of files){
+    if(!f.type.startsWith('image/')&&!f.type.startsWith('video/'))continue;
+    const dataUrl=await readFileAsDataURL(f);
+    const m={id:uid(),type:f.type.startsWith('image/')?'image':'video',name:f.name,dataUrl};
+    if(m.type==='video'){m.thumb=await genVideoThumb(dataUrl)}
+    pendingMedia.push(m);
+  }
+  renderMediaPreview();
+}
+function removePendingMedia(id){pendingMedia=pendingMedia.filter(m=>m.id!==id);renderMediaPreview()}
+function renderMediaPreview(){
+  const el=document.getElementById('mediaPreview');
+  if(!pendingMedia.length){el.innerHTML='';return}
+  el.innerHTML=pendingMedia.map(m=>`<div class="media-thumb">
+    ${m.type==='image'?`<img src="${m.dataUrl}">`:`<video src="${m.dataUrl}" muted></video>`}
+    ${m.type==='video'?'<span class="mt-vid-badge">▶</span>':''}
+    <button class="mt-del" onclick="removePendingMedia('${m.id}')">×</button></div>`).join('');
+}
+
+async function savePrompt(){
+  const title=document.getElementById('pTitle').value.trim();
+  const categoryId=document.getElementById('pCategory').value;
+  const promptText=document.getElementById('pText').value.trim();
+  if(!title){toast('请输入标题','error');return}
+  if(!categoryId){toast('请选择分类','error');return}
+  if(!promptText){toast('请输入提示词内容','error');return}
+  const data={
+    title,categoryId,
+    description:document.getElementById('pDesc').value.trim(),
+    promptText,
+    negativePrompt:document.getElementById('pNeg').value.trim(),
+    tool:document.getElementById('pTool').value.trim(),
+    parameters:document.getElementById('pParams').value.trim(),
+    tags:document.getElementById('pTags').value.split(/[,，]/).map(s=>s.trim()).filter(Boolean),
+    media:pendingMedia.map(m=>({id:m.id,type:m.type,name:m.name,dataUrl:m.dataUrl,thumb:m.thumb||null})),
+    updatedAt:new Date().toISOString()
+  };
+  if(editingPromptId){
+    const idx=S.prompts.findIndex(x=>x.id===editingPromptId);
+    S.prompts[idx]={...S.prompts[idx],...data};
+  }else{
+    data.id=uid();data.createdAt=new Date().toISOString();
+    S.prompts.push(data);
+  }
+  await saveState();renderCats();renderPrompts();closePromptModal();toast(editingPromptId?'提示词已更新':'提示词已添加');
+}
+
+// ════════════════════════════════════════
+//  DETAIL MODAL
+// ════════════════════════════════════════
+function openDetail(id){
+  const p=S.prompts.find(x=>x.id===id);if(!p)return;
+  const cat=S.categories.find(c=>c.id===p.categoryId);
+  let h=`<div class="detail-section"><div class="detail-title">${esc(p.title)}</div>`;
+  if(cat)h+=`<div class="detail-cat">${cat.icon} ${esc(cat.name)}</div>`;
+  h+=`</div>`;
+  if(p.description)h+=`<div class="detail-section"><div class="detail-label">描述</div><div class="detail-desc">${esc(p.description)}</div></div>`;
+  h+=`<div class="detail-section"><div class="detail-label">提示词内容</div><div class="detail-prompt-box"><button class="copy-btn" onclick="copyText(this,\`${esc(p.promptText).replace(/`/g,'\\`')}\`)">复制</button>${esc(p.promptText)}</div></div>`;
+  if(p.negativePrompt)h+=`<div class="detail-section"><div class="detail-label">反向提示词</div><div class="detail-prompt-box"><button class="copy-btn" onclick="copyText(this,\`${esc(p.negativePrompt).replace(/`/g,'\\`')}\`)">复制</button>${esc(p.negativePrompt)}</div></div>`;
+  if(p.tool||p.parameters){
+    h+=`<div class="detail-section"><div class="detail-label">工具 / 参数</div><div class="detail-meta">`;
+    if(p.tool)h+=`工具: ${esc(p.tool)}`;if(p.tool&&p.parameters)h+=`　|　`;
+    if(p.parameters)h+=`参数: ${esc(p.parameters)}`;
+    h+=`</div></div>`;
+  }
+  if(p.tags&&p.tags.length)h+=`<div class="detail-section"><div class="detail-label">标签</div><div class="detail-tags">${p.tags.map(t=>`<span class="card-tag">${esc(t)}</span>`).join('')}</div></div>`;
+  if(p.media&&p.media.length){
+    h+=`<div class="detail-section"><div class="detail-label">媒体示例</div><div class="detail-media-grid">`;
+    p.media.forEach(m=>{
+      h+=`<div class="dm-item" onclick="openLightbox('${m.type}','${m.id}','${p.id}')">`;
+      if(m.type==='image')h+=`<img src="${m.dataUrl}">`;
+      else h+=`<video src="${m.dataUrl}" muted preload="metadata"></video><div class="dm-play">▶</div>`;
+      h+=`</div>`;
+    });
+    h+=`</div></div>`;
+  }
+  h+=`<div class="detail-section"><div class="detail-label">时间</div><div class="detail-meta">创建: ${fmtTime(p.createdAt)}<br>更新: ${fmtTime(p.updatedAt||p.createdAt)}</div></div>`;
+  document.getElementById('detailBody').innerHTML=h;
+  document.getElementById('detailFoot').innerHTML=`<button class="btn" onclick="closeDetailModal()">关闭</button>
+    <button class="btn btn-danger" onclick="closeDetailModal();confirmDelPrompt('${p.id}')">删除</button>
+    <button class="btn btn-primary" onclick="closeDetailModal();openPromptModal('${p.id}')">编辑</button>`;
+  document.getElementById('detailModal').classList.add('open');
+}
+function closeDetailModal(){document.getElementById('detailModal').classList.remove('open')}
+function copyText(btn,text){
+  navigator.clipboard.writeText(text).then(()=>{btn.textContent='已复制!';toast('已复制到剪贴板');setTimeout(()=>btn.textContent='复制',1500)}).catch(()=>toast('复制失败','error'));
+}
+
+// ════════════════════════════════════════
+//  LIGHTBOX
+// ════════════════════════════════════════
+function openLightbox(type,mediaId,promptId){
+  const p=S.prompts.find(x=>x.id===promptId);if(!p)return;
+  const m=p.media.find(x=>x.id===mediaId);if(!m)return;
+  const el=document.getElementById('lbContent');
+  if(type==='image')el.innerHTML=`<img src="${m.dataUrl}">`;
+  else el.innerHTML=`<video src="${m.dataUrl}" controls autoplay style="max-width:92vw;max-height:92vh"></video>`;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(e){
+  if(e.target===document.getElementById('lightbox')||e.target.classList.contains('lb-close')){
+    document.getElementById('lightbox').classList.remove('open');
+    document.getElementById('lbContent').innerHTML='';
+  }
+}
+
+// ════════════════════════════════════════
+//  EXPORT / IMPORT
+// ════════════════════════════════════════
+function doExport(){
+  const data={categories:S.categories,prompts:S.prompts,lastUpdated:S.lastUpdated,exportedAt:new Date().toISOString()};
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='ai-prompts-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(url);
+  toast('数据已导出');
+}
+function doImport(){document.getElementById('fileImport').click()}
+document.getElementById('fileImport').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const text=await f.text();
+    const data=JSON.parse(text);
+    if(!data.categories||!data.prompts)throw new Error('格式错误');
+    S.categories=data.categories;S.prompts=data.prompts;S.lastUpdated=data.lastUpdated||new Date().toISOString();
+    await saveState();renderCats();renderPrompts();toast('数据已导入，共 '+S.prompts.length+' 条提示词');
+  }catch(err){toast('导入失败: '+err.message,'error')}
+  e.target.value='';
+});
+
+// ════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(document.getElementById('lightbox').classList.contains('open')){document.getElementById('lightbox').classList.remove('open');document.getElementById('lbContent').innerHTML=''}
+    else if(document.getElementById('detailModal').classList.contains('open'))closeDetailModal();
+    else if(document.getElementById('promptModal').classList.contains('open'))closePromptModal();
+    else if(document.getElementById('catModal').classList.contains('open'))closeCatModal();
+    else if(document.getElementById('confirmModal').classList.contains('open'))closeConfirm();
+  }
+});
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+(async function init(){
+  await loadState();
+  renderUpdated();
+  renderCats();
+  renderPrompts();
+})();
+</script>
+</body>
+</html>
